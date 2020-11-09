@@ -15,6 +15,7 @@ chrome.runtime.onMessage.addListener(
               const anchorText = document.createTextNode(deck);
               anchor.appendChild(anchorText);
               unknownDecksSection.appendChild(anchor);
+              unknownDecksSection.appendChild(document.createElement("br"));
             });
 
             sendResponse(true);

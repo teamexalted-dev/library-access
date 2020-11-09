@@ -149,7 +149,7 @@ const handleDokSync = async (token) => {
       }
 
       const extraInfo = document.getElementById('extra-info');
-      extraInfo.innerText = `Found ${dokOnlyDecks.length} decks in DoK not in MV<br/>`;
+      extraInfo.innerText = `Found ${dokOnlyDecks.length} decks in DoK not in MV`;
     }
 
     loading(false);
