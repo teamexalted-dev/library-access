@@ -1,84 +1,215 @@
-let masterVaultSection = document.getElementById('master-vault-section')
-let libraryAccessBtn = document.getElementById('access-master-vault')
-let libraryOnlyFavorites = document.getElementById('only-favorites')
-let libraryText = document.getElementById('library-status')
-let dokSection = document.getElementById('dok-section')
-let syncDokBtn = document.getElementById('sync-dok')
-let crucibleSection = document.getElementById('crucible-section')
-let syncCrucibleBtn = document.getElementById('sync-crucible')
+const libraryText = document.getElementById('library-status');
+const unknownDecksSection = document.getElementById("unknown-decks");
 
 const loading = (isLoading) => {
   if (isLoading) {
-    libraryText.innerHTML = 'Loading'
-    libraryText.classList.add('loading')
+    libraryText.innerText = 'Loading';
+    libraryText.classList.add('loading');
   } else {
-    libraryText.innerHTML = 'Done'
-    libraryText.classList.remove('loading')
+    libraryText.innerText = 'Done';
+    libraryText.classList.remove('loading');
   }
 }
 
-const handleMasterVaultSync = (cookie) => {
-  if (!cookie) {
-    alert('You must login to Master Vault first')
-    loading(false)
-    return
-  }
-
-  let token = cookie.value
-  let onlyFavorites = libraryOnlyFavorites.checked ? 1 : 0
-
-  getMasterVaultUser(token).then((user) => getMasterVaultLibrary(token, user, 1, onlyFavorites, []).then((library) => {
-    let libraryMin = []
-    library.forEach(deck => {
-      libraryMin.push(deck.id)
-    })
-
-    chrome.runtime.sendMessage({
-      popupQuery: 'saveLibrary',
-      library: libraryMin
-    }, () => {
-        loading(false)
-
-        libraryText.innerHTML =
-          library.length + ' decks accessed from Master Vault'
-    })
-
-  }))
-}
-
-const handleDokSync = (token) => loadLibrary().then((library) => {
-  if (!token) {
-    alert('You must login to Decks of KeyForge first')
-    loading(false)
-    return
-  }
-
-  if (!library || library.length == 0) {
-    alert(
-      'No decks accessed from Master Vault. Click "Access Master Vault" first.'
-    )
-    loading(false)
-    return
-  } else {
-    getDokUser(token).then((user) => getDokLibrary(token, user, 0, [])).then((dokLibrary) => {
-      dokLibraryMin = []
-      dokLibrary.forEach(deck => {
-        dokLibraryMin.push(deck.keyforgeId)
-      })
-
-      let imported = 0
-      library.forEach(deckId => {
-        if (!dokLibraryMin.includes(deckId)) {
-          importDeckDok(token, deckId)
-          imported = imported + 1
-        }
-      })
-
-      loading(false)
-      libraryText.innerHTML = "Synced " + imported + " decks"
-    })
-  }
+const loadLibrary = () => new Promise((resolve, reject) => {
+  chrome.runtime.sendMessage({
+    popupQuery: 'fetchLibrary'
+  }, (library) => {
+    resolve(library);
+  })
 })
+
+/*MASTER VAULT FUNCS*/
+
+document.getElementById('access-master-vault').onclick = async (el) => {
+  loading(true);
+  const mvAuthCookie = await chrome.cookies.get({
+      url: 'https://www.keyforgegame.com/',
+      name: 'auth'
+    });
+  handleMasterVaultSync(mvAuthCookie);
+}
+
+const handleMasterVaultSync = async (cookie) => {
+  if (!cookie) {
+    alert('You must login to Master Vault first');
+    loading(false);
+    return;
+  }
+
+  const masterVaultUser = await getMasterVaultUser(cookie.value);
+  const mvLibrary = await getMasterVaultLibrary(cookie.value, masterVaultUser, 1, document.getElementById('only-favorites').checked ? 1 : 0, [], 26);
+
+  const libraryMin = mvLibrary.map(deck => deck.id);
+  await chrome.runtime.sendMessage({
+    popupQuery: 'saveLibrary',
+    library: libraryMin
+  });
+
+  loading(false);
+  libraryText.innerText = `${libraryMin.length} decks accessed from Master Vault`;
+}
+
+const getMasterVaultUser = async (token) => {
+  const response = await fetch('https://www.keyforgegame.com/api/users/self/', {
+    credentials: 'include',
+    headers: {
+      accept: 'application/json',
+      'accept-language': 'en-us',
+      authorization: `Token ${token}`,
+      'x-authorization': `Token ${token}`
+    }
+  });
+  const responseJson = await response.json();
+  return responseJson.data;
+}
+
+const getMasterVaultLibrary = async (token, user, page, onlyFavorites, library, totalDecks) => {
+  document.getElementById('load-status').innerText = `${totalDecks && totalDecks > page*25 ? (page-1)*25 : totalDecks} of ${totalDecks ? totalDecks : 0} decks`;
+  const mvLibraryResultsPage = await fetch(`https://www.keyforgegame.com/api/users/${user.id}/decks/?page=${page}&page_size=25&search=&power_level=0,11&chains=0,24&only_favorites=${onlyFavorites}&ordering=-date`,
+    {
+      credentials: 'include',
+      headers: {
+        accept: 'application/json',
+        'accept-language': 'en-us',
+        authorization: `Token ${token}`,
+        'x-authorization': `Token ${token}`
+      },
+      method: 'GET'
+    }
+  );
+  const mvLibraryResultsPageJson = await mvLibraryResultsPage.json();
+  if(library.length + mvLibraryResultsPageJson.data.length != mvLibraryResultsPageJson.count) {
+    return await getMasterVaultLibrary(token, user, ++page, onlyFavorites, library.concat(mvLibraryResultsPageJson.data), mvLibraryResultsPageJson.count);
+  } else {
+    return library.concat(mvLibraryResultsPageJson.data);
+  }
+}
+
+/*MASTER VAULT FUNCS*/
+
+/*DoK FUNCS*/
+
+document.getElementById('sync-dok').onclick = async (el) => {
+  loading(true);
+  const activeTabs = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  });
+  const wrappedAuthToken = await chrome.tabs.executeScript(activeTabs[0].id, {code: 'localStorage["AUTH"];'});
+  handleDokSync(wrappedAuthToken[0]);
+}
+
+
+
+const handleDokSync = async (token) => {
+  if (!token) {
+    alert('You must login to Decks of KeyForge first');
+    loading(false);
+    return;
+  }
+
+  const library = await loadLibrary();
+  if (!library || library.length == 0) {
+    alert('No decks accessed from Master Vault. Click "Access Master Vault" first.');
+    loading(false);
+    return;
+  } else {
+    const dokDecks = await getDokLibrary(token);
+    let imported = 0;
+
+    for (let index = 0; index < library.length; index++) {
+      if(!dokDecks.includes(library[index])){
+        await importDeckDok(token, library[index]);
+        ++imported;
+      }
+    }
+
+    const dokOnlyDecks =[];
+    for (let index = 0; index < dokDecks.length; index++) {
+      if(!library.includes(dokDecks[index])){
+        dokOnlyDecks.push(dokDecks[index]);
+      }
+    }
+
+    if(dokOnlyDecks.length > 0) {
+      unknownDecksSection.classList.remove('display-none');
+      document.getElementById("show-unknown-decks").onclick = async (el) => {
+        const tab = await chrome.tabs.create({url: "../unknown-decks/unknown.html", active: false});
+
+        function tabUpdatedHandler (tabId, info) {
+          if(tabId == tab.id && info.status == 'complete') {
+            chrome.tabs.sendMessage(tab.id, {"unknown-decks": dokOnlyDecks});
+            chrome.tabs.onUpdated.removeListener(tabUpdatedHandler);
+            chrome.tabs.update(tabId, {active: true});
+          }
+        };
+
+        chrome.tabs.onUpdated.addListener(tabUpdatedHandler);
+      }
+
+      const extraInfo = document.getElementById('extra-info');
+      extraInfo.innerText = `Found ${dokOnlyDecks.length} decks in DoK not in MV<br/>`;
+    }
+
+    loading(false);
+    libraryText.innerText = `Synced ${imported} decks`;
+  }
+}
+
+
+
+const getDokLibrary = async (token) => {
+  const dokDeckList = await fetch("https://decksofkeyforge.com/public-api/v1/my-deck-ids", {
+    "credentials": "include",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "accept-language": "en-US,en;q=0.9,da;q=0.8",
+      "authorization": token,
+      "cache-control": "no-cache",
+      "content-type": "application/json;charset=UTF-8",
+      "pragma": "no-cache",
+      "timezone": "-240"
+    },
+    "method": "GET",
+  });
+  return dokDeckList.json();
+}
+
+const importDeckDok = async (token, deckId) => {
+  const response = await fetch(
+    `https://decksofkeyforge.com/api/decks/${deckId}/import-and-add`, {
+      credentials: 'include',
+      headers: {
+        accept: 'application/json, text/plain, */*',
+        'accept-language': 'en-US,en;q=0.9,da;q=0.8',
+        authorization: token,
+        timezone: '-240'
+      },
+      method: 'POST'
+    });
+  console.log(`Import ${deckId}`, response);
+}
+
+/*DoK FUNCS*/
+
+/*TCO FUNCS*/
+
+document.getElementById('sync-crucible').onclick = (el) => {
+  loading(true)
+  chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    }, (tabs) =>
+    chrome.tabs.executeScript(
+      tabs[0].id, {
+        code: 'localStorage["refreshToken"];'
+      },
+      (response) => {
+        handleCrucibleSync(response[0])
+      }
+    ))
+}
 
 const handleCrucibleSync = (user) => loadLibrary().then((library) => {
   if (!user) {
@@ -132,152 +263,19 @@ const handleCrucibleSync = (user) => loadLibrary().then((library) => {
           })
 
           loading(false)
-          libraryText.innerHTML = "Synced " + imported + " decks"
+          libraryText.innerText = `Synced ${imported} decks`
         })
       })
   }
 })
 
-const getMasterVaultUser = (token) => fetch('https://www.keyforgegame.com/api/users/self/', {
-    credentials: 'include',
-    headers: {
-      accept: 'application/json',
-      'accept-language': 'en-us',
-      authorization: 'Token ' + token,
-      'x-authorization': 'Token ' + token
-    }
-  })
-  .then((response) => response.json())
-  .then((user) => user.data)
-
-const getDokUser = (token) => fetch('https://decksofkeyforge.com/api/users/secured/your-user', {
-    credentials: 'include',
-    headers: {
-      accept: 'application/json',
-      'accept-language': 'en-us',
-      authorization: token,
-      'x-authorization': token
-    }
-  })
-  .then((response) => response.json())
-
-const loadLibrary = () => new Promise((resolve, reject) => {
-  chrome.runtime.sendMessage({
-    popupQuery: 'fetchLibrary'
-  }, (library) => {
-    resolve(library)
-  })
-})
-
-const getMasterVaultLibrary = (token, user, page, onlyFavorites, library) => new Promise((resolve, reject) => {
-  fetch(
-      'https://www.keyforgegame.com/api/users/' +
-      user.id +
-      '/decks/?page=' +
-      page +
-      '&page_size=10&search=&power_level=0,11&chains=0,24&only_favorites=' +
-      onlyFavorites +
-      '&ordering=-date', {
-        credentials: 'include',
-        headers: {
-          accept: 'application/json',
-          'accept-language': 'en-us',
-          authorization: 'Token ' + token,
-          'x-authorization': 'Token ' + token
-        },
-        method: 'GET'
-      }
-    )
-    .then((response) => response.json())
-    .then((response) => {
-      library = library.concat(response.data)
-
-      if (library.length != response.count) {
-        page = page + 1
-        getMasterVaultLibrary(token, user, page, onlyFavorites, library)
-          .then(resolve)
-          .catch(reject)
-      } else {
-        resolve(library)
-      }
-    })
-})
-
-const getDokLibrary = (token, user, page, library) => new Promise((resolve, reject) => {
-  let body = JSON.stringify({
-    "houses": [],
-    "page": page,
-    "constraints": [],
-    "expansions": [],
-    "pageSize": 20,
-    "title": "",
-    "sort": "SAS_RATING",
-    "forSale": false,
-    "notForSale": false,
-    "forTrade": false,
-    "forAuction": false,
-    "withOwners": false,
-    "completedAuctions": false,
-    "includeUnregistered": true,
-    "myFavorites": false,
-    "cards": [],
-    "sortDirection": "DESC",
-    "owner": user.username
-  })
-
-  fetch("https://decksofkeyforge.com/api/decks/filter", {
-      "credentials": "include",
-      "headers": {
-        "accept": "application/json, text/plain, */*",
-        "accept-language": "en-US,en;q=0.9,da;q=0.8",
-        "authorization": token,
-        "cache-control": "no-cache",
-        "content-type": "application/json;charset=UTF-8",
-        "pragma": "no-cache",
-        "timezone": "-240"
-      },
-      "body": body,
-      "method": "POST",
-    })
-    .then((response) => response.json())
-    .then((response) => {
-      library = library.concat(response.decks)
-
-      fetch("https://decksofkeyforge.com/api/decks/filter-count", {
-          "credentials": "include",
-          "headers": {
-            "accept": "application/json, text/plain, */*",
-            "accept-language": "en-US,en;q=0.9,da;q=0.8",
-            "authorization": token,
-            "cache-control": "no-cache",
-            "content-type": "application/json;charset=UTF-8",
-            "pragma": "no-cache",
-            "timezone": "-240"
-          },
-          "body": body,
-          "method": "POST",
-          "mode": "cors"
-        }).then((response) => response.json())
-        .then((response) => {
-          if (library.length != response.count) {
-            page = page + 1
-            getDokLibrary(token, user, page, library)
-              .then(resolve)
-              .catch(reject)
-          } else {
-            resolve(library)
-          }
-        })
-    })
-})
-
 const getCrucibleLibrary = (token, user, page, library) => new Promise((resolve, reject) => {
-  fetch("https://www.thecrucible.online/api/decks?_=" + user.id, {
+  fetch(`https://www.thecrucible.online/api/decks?_=${user.id}`, {
       "credentials": "include",
       "headers": {
         "accept": "*/*",
         "accept-language": "en-US,en;q=0.9,da;q=0.8",
-        "authorization": "Bearer " + token,
+        "authorization": `Bearer ${token}`,
         "cache-control": "no-cache",
         "content-type": "application/json",
         "pragma": "no-cache",
@@ -289,28 +287,13 @@ const getCrucibleLibrary = (token, user, page, library) => new Promise((resolve,
     .then((response) => resolve(response.decks))
 })
 
-const importDeckDok = (token, deckId) => {
-  fetch(
-    'https://decksofkeyforge.com/api/decks/' + deckId + '/import-and-add', {
-      credentials: 'include',
-      headers: {
-        accept: 'application/json, text/plain, */*',
-        'accept-language': 'en-US,en;q=0.9,da;q=0.8',
-        authorization: token,
-        timezone: '-240'
-      },
-      method: 'POST'
-    }
-  ).then((response) => console.log('Import ' + deckId, response))
-}
-
 const importDeckCrucible = (token, deckId) => {
   fetch("https://www.thecrucible.online/api/decks/", {
     "credentials": "include",
     "headers": {
       "accept": "*/*",
       "accept-language": "en-US,en;q=0.9,da;q=0.8",
-      "authorization": "Bearer " + token,
+      "authorization": `Bearer ${token}`,
       "cache-control": "no-cache",
       "content-type": "application/json",
       "pragma": "no-cache",
@@ -322,73 +305,40 @@ const importDeckCrucible = (token, deckId) => {
       "uuid": deckId
     }),
     "method": "POST",
-  }).then((response) => console.log('Import ' + deckId, response))
+  }).then((response) => console.log(`Import ${deckId}`, response))
 }
 
+/*TCO FUNCS*/
+
 chrome.tabs.getSelected(null, (tab) => {
-  tabUrl = tab.url;
+  const masterVaultSection = document.getElementById('master-vault-section');
+  const dokSection = document.getElementById('dok-section');
+  const crucibleSection = document.getElementById('crucible-section');
+  
+  const tabUrl = tab.url;
+
   if (tabUrl.includes('www.keyforgegame.com')) {
     masterVaultSection.classList.remove('display-none')
     dokSection.classList.add('display-none')
     crucibleSection.classList.add('display-none')
+    unknownDecksSection.classList.add('display-none')
   } else if (tabUrl.includes('decksofkeyforge.com')) {
     dokSection.classList.remove('display-none')
     masterVaultSection.classList.add('display-none')
     crucibleSection.classList.add('display-none')
+    unknownDecksSection.classList.add('display-none')
   } else if (tabUrl.includes('www.thecrucible.online') || tabUrl.includes('thecrucible.online')) {
     crucibleSection.classList.remove('display-none')
     masterVaultSection.classList.add('display-none')
     dokSection.classList.add('display-none')
+    unknownDecksSection.classList.add('display-none')
   }
 })
 
 loadLibrary().then((library) => {
   if (!library || library.length == 0) {
-    libraryText.innerHTML = 'No decks accessed from Master Vault'
+    libraryText.innerText = 'No decks accessed from Master Vault';
   } else {
-    libraryText.innerHTML = library.length + ' decks accessed from Master Vault'
+    libraryText.innerText = `${library.length} decks accessed from Master Vault`;
   }
 })
-
-libraryAccessBtn.onclick = (el) => {
-  loading(true)
-  chrome.cookies.get({
-      url: 'https://www.keyforgegame.com/',
-      name: 'auth'
-    },
-    handleMasterVaultSync
-  )
-}
-
-syncDokBtn.onclick = (el) => {
-  loading(true)
-  chrome.tabs.query({
-      active: true,
-      currentWindow: true
-    }, (tabs) =>
-    chrome.tabs.executeScript(
-      tabs[0].id, {
-        code: 'localStorage["AUTH"];'
-      },
-      (response) => {
-        token = response[0]
-        handleDokSync(token)
-      }
-    ))
-}
-
-syncCrucibleBtn.onclick = (el) => {
-  loading(true)
-  chrome.tabs.query({
-      active: true,
-      currentWindow: true
-    }, (tabs) =>
-    chrome.tabs.executeScript(
-      tabs[0].id, {
-        code: 'localStorage["refreshToken"];'
-      },
-      (response) => {
-        handleCrucibleSync(response[0])
-      }
-    ))
-}

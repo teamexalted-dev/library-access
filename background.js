@@ -1,5 +1,4 @@
-const apiKey = ""
-let library = []
+const apiKey = "dd931e2d-9a69-433e-8d39-6998ba8d505b"
 
 chrome.runtime.onInstalled.addListener(() => chrome.declarativeContent.onPageChanged.removeRules(undefined, () => chrome.declarativeContent.onPageChanged.addRules([{
   conditions: [
@@ -31,10 +30,13 @@ chrome.runtime.onInstalled.addListener(() => chrome.declarativeContent.onPageCha
 chrome.runtime.onMessage.addListener(
   (request, sender, sendResponse) => {
     if (request.popupQuery == 'saveLibrary') {
-      library = request.library
-      sendResponse(true)
+      chrome.storage.local.set({"mv-library": request.library}, () => {
+        sendResponse(true)
+      })
     } else if (request.popupQuery == 'fetchLibrary') {
-      sendResponse(library)
+      chrome.storage.local.get(["mv-library"], (library) => {
+        sendResponse(library["mv-library"])
+      })
     }
 
     if (request.contentScriptQuery == 'loadDokData') {

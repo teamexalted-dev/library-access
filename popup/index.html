@@ -5,36 +5,39 @@
     <link rel="stylesheet" type="text/css" href="../vendor/ps-sans.css" />
   </head>
   <body>
-    <!-- Info-->
-    <div id="info-section">
-      <h1 id="library-status"></h1>
+    <div>
+      <!-- Info-->
+      <div id="info-section">
+        <h1 id="library-status"></h1>
+        <h1 id="load-status"></h1>
+        <h1 id="extra-info"></h1>
+      </div>
+
+      <!-- Unknown decks-->
+      <div id="unknown-decks" class="display-none launch">
+        <div id="show-unknown-decks" class="button">View Decks</div>
+      </div>
+
+      <!-- Master Vault -->
+      <div id="master-vault-section" class="display-none launch">
+          <div id="access-master-vault" class="button">Access Master Vault</div>
+          <p>
+            <input type="checkbox" id="only-favorites">
+            <label for="only-favorites"> Only favorites</label>
+          </p>
+      </div>
+
+      <!-- Decks of KeyForge -->
+      <div id="dok-section" class="display-none launch">
+          <div id="sync-dok" class="button">Sync Decks of KeyForge</div>
+      </div>
+
+      <!-- The Crucible Online -->
+      <div id="crucible-section" class="display-none launch">
+          <div id="sync-crucible" class="button">Sync The Crucible Online</div>
+      </div>
     </div>
-
-    <!-- Master Vault -->
-    <aside id="master-vault-section" class="display-none">
-      <section class="launch">
-        <a id="access-master-vault" class="button">Access Master Vault</a>
-        <p>
-          <input type="checkbox" id="only-favorites">
-          <label for="only-favorites"> Only favorites</label>
-        </p>
-      </section>
-    </aside>
-
-    <!-- Decks of KeyForge -->
-    <aside id="dok-section" class="display-none">
-      <section class="launch">
-        <a id="sync-dok" class="button">Sync Decks of KeyForge</a>
-      </section>
-    </aside>
-
-    <!-- The Crucible Online -->
-    <aside id="crucible-section" class="display-none">
-      <section class="launch">
-        <a id="sync-crucible" class="button">Sync The Crucible Online</a>
-      </section>
-    </aside>
-
   </body>
+  <script src="../vendor/chrome-extension-async.min.js"></script>
   <script src="popup.js"></script>
 </html>

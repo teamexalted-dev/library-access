@@ -93,15 +93,15 @@ const loadDokData = (event) => {
 
         <section class="section-scores">
           <div class="scores-bar">
-              <div style="width: ${Number(deck.sasRating) >= 100 ? 100 : Number(deck.sasRating)}%"></div>
+              <div style="width: ${Number(deck.sasPercentile) * 100}%"></div>
           </div>
           <h3>
               <div class="section-score">${Number(deck.sasRating)}</div> SAS
           </h3>
           <table class="table-scores">
             <tr>
-              <td class="score">${Number(deck.cardsRating)}</td>
-              <td>Card Rating</td>
+              <td class="score">${Number(deck.sasPercentile * 100).toFixed(2)}</td>
+              <td>SAS Percentile</td>
             </tr>
             <tr>
               <td class="score">${Number(deck.synergyRating)}</td>
@@ -123,28 +123,26 @@ const loadDokData = (event) => {
           </h3>
           <table class="table-scores">
             <tr>
-              <td class="score">${Number(deck.amberControl)}</td>
-              <td>Aember Control</td>
+              <td class="score">${Number(deck.rawAmber)}</td>
+              <td>Raw Aember</td>
             </tr>
             <tr>
               <td class="score">${Number(deck.expectedAmber)}</td>
               <td>Expected Aember</td>
+            </tr>  
+
+            <tr>
+              <td class="score">${Number(deck.amberControl)}</td>
+              <td>Aember Control</td>
             </tr>
             <tr>
-              <td class="score">${Number(deck.artifactControl)}</td>
-              <td>Artifact Control</td>
-            </tr>
-              <tr>
               <td class="score">${Number(deck.creatureControl)}</td>
               <td>Creature Control</td>
             </tr>
-            <tr>
-              <td class="score">${Number(deck.deckManipulation)}</td>
-              <td>Deck Manipulation</td>
-            </tr>
+
             <tr>
               <td class="score">${Number(deck.effectivePower) / 10}</td>
-              <td>Creature Power</td>
+              <td>Effective Power</td>
             </tr>
 
             <tr>

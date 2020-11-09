@@ -29,6 +29,8 @@ Design provided by [Jason Merriman @ hyphen-ated](http://hyphen-ated.com/)
 
 [Arrive.js from uzairfarooq](https://github.com/uzairfarooq/arrive)
 
+[chrome-extension-async.js from Keith henry](https://github.com/KeithHenry/chromeExtensionAsync)
+
 Using code adapted from [this CodePen by Mattia Astorino](https://codepen.io/equinusocio/pen/wPvvmv), under [this license](pure-css-drawer-menu.license.txt).
 
 Using code from [this CodePen by thetallweeks](https://codepen.io/thetallweeks)
