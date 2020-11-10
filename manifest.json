@@ -2,14 +2,13 @@
     "manifest_version": 2,
     "name": "Library Access 2.0: KeyForge Deck Sync Tool",
     "short_name": " Library Access 2.0",
-    "version": "2.0",
+    "version": "2.0.1",
     "permissions": [
         "activeTab",
         "cookies",
         "declarativeContent",
         "https://www.keyforgegame.com/",
         "https://decksofkeyforge.com/",
-        "https://www.thecrucible.online/",
         "https://thecrucible.online/",
         "storage"
     ],

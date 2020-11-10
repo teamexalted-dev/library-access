@@ -227,7 +227,7 @@ const handleCrucibleSync = (user) => loadLibrary().then((library) => {
     loading(false)
     return
   } else {
-    fetch("https://www.thecrucible.online/api/account/token", {
+    fetch("https://thecrucible.online/api/account/token", {
         "credentials": "include",
         "headers": {
           "accept": "*/*",
@@ -237,7 +237,7 @@ const handleCrucibleSync = (user) => loadLibrary().then((library) => {
           "pragma": "no-cache",
           "x-requested-with": "XMLHttpRequest"
         },
-        "referrer": "https://www.thecrucible.online/decks",
+        "referrer": "https://thecrucible.online/decks",
         "referrerPolicy": "no-referrer-when-downgrade",
         "body": JSON.stringify({
           'token': user
@@ -270,7 +270,7 @@ const handleCrucibleSync = (user) => loadLibrary().then((library) => {
 })
 
 const getCrucibleLibrary = (token, user, page, library) => new Promise((resolve, reject) => {
-  fetch(`https://www.thecrucible.online/api/decks?_=${user.id}`, {
+  fetch(`https://thecrucible.online/api/decks?pageSize=10000&page=1`, {
       "credentials": "include",
       "headers": {
         "accept": "*/*",
@@ -288,7 +288,7 @@ const getCrucibleLibrary = (token, user, page, library) => new Promise((resolve,
 })
 
 const importDeckCrucible = (token, deckId) => {
-  fetch("https://www.thecrucible.online/api/decks/", {
+  fetch("https://thecrucible.online/api/decks/", {
     "credentials": "include",
     "headers": {
       "accept": "*/*",
@@ -299,7 +299,7 @@ const importDeckCrucible = (token, deckId) => {
       "pragma": "no-cache",
       "x-requested-with": "XMLHttpRequest",
     },
-    "referrer": "https://www.thecrucible.online/decks/import",
+    "referrer": "https://thecrucible.online/decks/import",
     "referrerPolicy": "no-referrer-when-downgrade",
     "body": JSON.stringify({
       "uuid": deckId
@@ -327,7 +327,7 @@ chrome.tabs.getSelected(null, (tab) => {
     masterVaultSection.classList.add('display-none')
     crucibleSection.classList.add('display-none')
     unknownDecksSection.classList.add('display-none')
-  } else if (tabUrl.includes('www.thecrucible.online') || tabUrl.includes('thecrucible.online')) {
+  } else if (tabUrl.includes('thecrucible.online')) {
     crucibleSection.classList.remove('display-none')
     masterVaultSection.classList.add('display-none')
     dokSection.classList.add('display-none')
