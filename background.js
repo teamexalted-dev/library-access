@@ -32,6 +32,14 @@ chrome.runtime.onMessage.addListener(
       chrome.storage.local.get(["mv-library"], (library) => {
         sendResponse(library["mv-library"])
       })
+    } else if (request.popupQuery == 'saveLibraryTco') {
+      chrome.storage.local.set({"mv-library-tco": request.library}, () => {
+        sendResponse(true)
+      })
+    } else if (request.popupQuery == 'fetchLibraryTco') {
+      chrome.storage.local.get(["mv-library-tco"], (library) => {
+        sendResponse(library["mv-library-tco"])
+      })
     }
 
     if (request.contentScriptQuery == 'loadDokData') {

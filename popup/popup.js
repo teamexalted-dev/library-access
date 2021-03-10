@@ -19,6 +19,13 @@ const loadLibrary = () => new Promise((resolve, reject) => {
   })
 })
 
+const loadLibraryTco = () => new Promise((resolve, reject) => {
+  chrome.runtime.sendMessage({
+    popupQuery: 'fetchLibraryTco'
+  }, (library) => {
+    resolve(library);
+  })
+})
 /*MASTER VAULT FUNCS*/
 
 document.getElementById('access-master-vault').onclick = async (el) => {
@@ -44,6 +51,12 @@ const handleMasterVaultSync = async (cookie) => {
   await chrome.runtime.sendMessage({
     popupQuery: 'saveLibrary',
     library: libraryMin
+  });
+  
+  const libraryMinTco = mvLibrary.filter(deck => deck.expansion !== 479).map(deck => deck.id);
+  await chrome.runtime.sendMessage({
+    popupQuery: 'saveLibraryTco',
+    library: libraryMinTco
   });
 
   loading(false);
@@ -211,7 +224,7 @@ document.getElementById('sync-crucible').onclick = (el) => {
     ))
 }
 
-const handleCrucibleSync = (user) => loadLibrary().then((library) => {
+const handleCrucibleSync = (user) => loadLibraryTco().then((library) => {
   if (!user) {
     alert('You must login to The Crucible Online first')
     loading(false)
